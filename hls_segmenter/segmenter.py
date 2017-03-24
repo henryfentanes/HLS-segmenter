@@ -180,7 +180,7 @@ def setkeyframes(inputfile, interval=10):
 # Execute FFMPEG segmenter based on predefined profiles
 def segmenter(inputfile, dryrun=False, urlprefix='../'):
     # import profiles presets
-    import presets
+    from . import presets
 
     # base ffmpeg command for segmenter
     ffmpegcmd_segm = 'ffmpeg -y -v error -i %(inputfile)s -c:a aac -strict experimental -ac 2 -b:a %(audiobitrate)s -ar 44100 -c:v libx264 -pix_fmt yuv420p -profile:v %(profile)s -preset %(ffmpegmode)s -level %(level)s -b:v %(videobitrate)s -maxrate %(videobitrate)s -bufsize %(buffersize)s -threads 0 -r %(fps)s -g %(gop)s -hls_time %(segmentsize)s -hls_list_size 0 -s %(resolution)s %(outputpath)s/%(outputname)s.m3u8'
