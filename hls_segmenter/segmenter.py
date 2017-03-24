@@ -254,6 +254,7 @@ def segmenter(inputfile, dryrun=False, urlprefix='../'):
                 f.write('#EXT-X-STREAM-INF:BANDWIDTH=%(bitrate)s,RESOLUTION=%(resolution)s\n' % variant)
                 f.write(variant['playlist']+'\n')
         log.info('Variant playlist created: {0}'.format(variantfilepath))
+    return variantfilepath
 
 
 def main(argv):
@@ -286,13 +287,14 @@ def main(argv):
         sys.exit(2)
 
     # convert files and create playlists
-    segmenter(inputfile=inputfile, dryrun=variantonly, urlprefix=urlprefix)
+    segmented = segmenter(
+        inputfile=inputfile, dryrun=variantonly, urlprefix=urlprefix)
 
     # Exit
     log.info('HLS segmentation completed in {0}'.format(ellapsed(True)))
     time_factor(inputfile)
     size_factor(inputfile)
-    sys.exit(0)
+    return segmented
 
 
 def create_segmentation(filename):
