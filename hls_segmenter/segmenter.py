@@ -295,6 +295,11 @@ def main(argv):
     sys.exit(0)
 
 
+def create_segmentation(filename):
+    argv = ['-i', '{}'.format(filename)]
+    return main(argv)
+
+
 if __name__ == "__main__":
     main(sys.argv[1:])
 
