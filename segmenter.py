@@ -1,6 +1,8 @@
 #!/usr/bin/python
-import sys, getopt
-import os, errno
+import sys
+import getopt
+import os
+import errno
 import subprocess
 import shutil
 import time
@@ -10,11 +12,13 @@ import logging as log
 starttime = runtime = time.time()
 log.basicConfig(level=log.INFO)
 
+
 def ellapsed(overall=False):
     global runtime
     t = (time.time() - starttime) if overall else (time.time() - runtime)
     runtime = time.time()
-    return "%d:%02d:%02d" % (int(t//3600), int(t/60)%3600, round(t)%60)
+    return "%d:%02d:%02d" % (int(t//3600), int(t/60) % 3600, round(t) % 60)
+
 
 # Mkdir (and erase if exist)
 def makedir(path):
@@ -22,8 +26,11 @@ def makedir(path):
     try:
         os.makedirs(path)
     except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path): pass
-        else: raise
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
+
 
 # Get Size of a folder (recursively)
 def getFolderSize(folder):
@@ -36,11 +43,13 @@ def getFolderSize(folder):
             total_size += getFolderSize(itempath)
     return total_size
 
+
 # Utils to calculate the ratio between
 #   the current execution time and the movie duration
 #   gives movie_duration * factor = encoding_duration
 def time_factor(filepath):
     factor = 0
+
     def result(valid=True):
         if valid:
             log.info('Time factor: x{0}'.format(round(factor, 2)))
@@ -58,11 +67,13 @@ def time_factor(filepath):
         pass
     return result(False)
 
+
 # Utils to calculate the ratio between
 #   the output folder size and the original file size
 #   gives original_size * factor = output_size
 def size_factor(filepath):
     factor = 0
+
     def result(valid=True):
         if valid:
             log.info('Size factor: x{0}'.format(round(factor, 2)))
@@ -77,6 +88,7 @@ def size_factor(filepath):
         pass
     return result(False)
 
+
 # Utils to detect video aspect ratio using FFProbe
 def detect_ratio(filepath):
     # detect video aspect ratio
@@ -87,21 +99,25 @@ def detect_ratio(filepath):
         if valid:
             log.info('Detected aspect ratio: {0}'.format(aspectratio))
         else:
-            log.warning('Can\'t detect video aspect ratio.. going with default: {0}'.format(aspectratio))
+            log.warning("Can't detect video aspect ratio. Default: {0}".format(
+                aspectratio))
         return aspectratio
 
     # FFProbe command
     ffprobecmd = 'ffprobe -v error -show_entries stream=width,height -of default=noprint_wrappers=1 {0}'.format(filepath)
     probe = subprocess.Popen(ffprobecmd.split(), stdout=subprocess.PIPE)
     output, err = probe.communicate()
+    output = str(output, 'utf-8')
     output = output.split()
     try:
-        width = float(output[ (0 if output[0][0] == 'w' else 1) ].split('=')[1])
-        height = float(output[ (0 if output[0][0] == 'h' else 1) ].split('=')[1])
+        width = float(output[(0 if output[0][0] == 'w' else 1)].split('=')[1])
+        height = float(output[(0 if output[0][0] == 'h' else 1)].split('=')[1])
         ratio = width/height
         if ratio > 1.2 and ratio < 1.9:
-            if ratio < 1.5: aspectratio = '4/3'
-            else: aspectratio = '16/9'
+            if ratio < 1.5:
+                aspectratio = '4/3'
+            else:
+                aspectratio = '16/9'
             return result()
     except:
         pass
@@ -121,22 +137,31 @@ def detect_bitrate(path):
             if filename[-2:] == 'ts':
                 try:
                     filepath = os.path.join(path, filename)
-                    probe = subprocess.Popen(ffprobecmd.format(filepath).split(), stdout=subprocess.PIPE)
+                    probe = subprocess.Popen(
+                        ffprobecmd.format(filepath).split(),
+                        stdout=subprocess.PIPE)
                     output, err = probe.communicate()
+                    output = str(output, 'utf-8')
                     output = int(output.split('=')[1])
-                    if not output > 0: raise
+                    if not output > 0:
+                        raise
                     bitrate = max(bitrate, output)
-                except:
-                    log.error('Can\'t detect bitrate for the file {0}'.format(filepath))
+                except Exception as e:
+                    log.error('Can\'t detect bitrate for the file {0}'.format(
+                        filepath))
 
-    log.debug('Bitrate detected: {0}'.format(bitrate)) if bitrate > 0 else  log.warning('No Bitrate detected in {0}'.format(path))
+    if bitrate > 0:
+        log.debug('Bitrate detected: {0}'.format(bitrate))
+    else:
+        log.warning('No Bitrate detected in {0}'.format(path))
     return bitrate
+
 
 # Force Key Frames to match segment segmentsize
 def setkeyframes(inputfile, interval=10):
     # base ffmpeg command
     ffmpegcmd = 'ffmpeg -i {input} -force_key_frames "expr:gte(t,n_forced*2)" k{interval}-{input}'.format(input=inputfile, interval=interval)
-    print ffmpegcmd
+    print(ffmpegcmd)
     log.info('Forcing Keyframes..')
 
     # Execute FFMPEG command
@@ -144,7 +169,8 @@ def setkeyframes(inputfile, interval=10):
     output, err = probe.communicate()
 
     if not err:
-        log.info('Forced Keyframe media created: k{interval}-{input}'.format(input=inputfile, interval=interval))
+        log.info('Forced Keyframe media created: k{interval}-{input}'.format(
+            input=inputfile, interval=interval))
         return 'k{interval}-{input}'.format(input=inputfile, interval=interval)
     else:
         log.warning('Can\'t force keyframes..')
@@ -162,23 +188,21 @@ def segmenter(inputfile, dryrun=False, urlprefix='../'):
     # fallback media
     ffmpegcmd_media = 'ffmpeg -y -v error -i %(inputfile)s -c:a aac -strict experimental -ac 2 -b:a %(audiobitrate)s -ar 44100 -c:v libx264 -pix_fmt yuv420p -profile:v %(profile)s -preset %(ffmpegmode)s -level %(level)s -b:v %(videobitrate)s -maxrate %(videobitrate)s -bufsize %(buffersize)s -threads 0 -r %(fps)s -s %(resolution)s %(workpath)s/%(workname)s.mp4'
 
-
     # working path / name
     workname = os.path.splitext(os.path.basename(inputfile))[0]
     workpath = os.path.splitext(inputfile)[0]
     if not dryrun:
         makedir(workpath)
 
-
     # prepare ffmpeg commands formated with the profiles
     variants = OrderedDict()
-    profiles = presets.build(inputfile=inputfile, ratio=detect_ratio(inputfile))
+    profiles = presets.build(
+        inputfile=inputfile, ratio=detect_ratio(inputfile))
     ellapsed()
 
     # try to force keyframes
     # inputfile = setkeyframes(inputfile=inputfile, interval=presets.SEGMENT_SIZE)
     ellapsed()
-
 
     # start segmenter
     firstPreset = True
@@ -193,27 +217,31 @@ def segmenter(inputfile, dryrun=False, urlprefix='../'):
 
             # Execute FFMPEG command MEDIA (for the first preset only)
             if firstPreset:
-                log.info("Encoding fallback media with profile: {0}".format(quality))
-                probe = subprocess.Popen((ffmpegcmd_media % preset).split(), stdout=subprocess.PIPE)
+                log.info("Encoding media with profile: {0}".format(quality))
+                probe = subprocess.Popen(
+                    (ffmpegcmd_media % preset).split(), stdout=subprocess.PIPE)
                 output, err = probe.communicate()
                 firstPreset = False
 
             # Execute FFMPEG command SEGMENTER
             log.info("Processing media with profile: {0}".format(quality))
-            probe = subprocess.Popen((ffmpegcmd_segm % preset).split(), stdout=subprocess.PIPE)
+            probe = subprocess.Popen(
+                (ffmpegcmd_segm % preset).split(), stdout=subprocess.PIPE)
             output, err = probe.communicate()
 
         # Save m3u8 file path, resolution and maximum bitrate
         if not err:
             variants[quality] = {
                 'resolution': preset['resolution'],
-                'playlist': urlprefix + os.path.join(workname, quality, preset['outputname']+'.m3u8'),
+                'playlist': urlprefix + os.path.join(
+                    workname, quality, preset['outputname']+'.m3u8'),
                 'bitrate': detect_bitrate(preset['outputpath'])
             }
         # Log
         try:
             if variants[quality]['bitrate'] > 0:
-                log.debug('Profile {0} completed in {1}'.format(quality, ellapsed()))
+                log.debug('Profile {0} completed in {1}'.format(
+                    quality, ellapsed()))
         except:
             log.error('Error with profile {0}: {1}'.format(quality, err))
 
@@ -228,17 +256,17 @@ def segmenter(inputfile, dryrun=False, urlprefix='../'):
         log.info('Variant playlist created: {0}'.format(variantfilepath))
 
 
-
 def main(argv):
     # Init
-    usage = 'Usage: {0} -i <input file> [-u <urlprefix>] [-p] '.format(sys.argv[0])
+    usage = 'Usage: {0} -i <input file> [-u <urlprefix>] [-p] '.format(
+        sys.argv[0])
     inputfile = test = variantonly = False
     urlprefix = '../'
     # Parse Args
     try:
-        opts, args = getopt.getopt(argv,"hi:u:p",[])
+        opts, args = getopt.getopt(argv, "hi:u:p", [])
     except getopt.GetoptError:
-        print usage
+        print(usage)
         sys.exit(2)
     for opt, arg in opts:
         if opt in ("-i"):
@@ -249,7 +277,7 @@ def main(argv):
             variantonly = True
 
     if not inputfile:
-        print usage
+        print(usage)
         sys.exit(0)
 
     # check if input file exists
@@ -261,14 +289,14 @@ def main(argv):
     segmenter(inputfile=inputfile, dryrun=variantonly, urlprefix=urlprefix)
 
     # Exit
-    log.info('HLS segmentation completed in {0}'.format( ellapsed(True) ))
+    log.info('HLS segmentation completed in {0}'.format(ellapsed(True)))
     time_factor(inputfile)
     size_factor(inputfile)
     sys.exit(0)
 
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
+    main(sys.argv[1:])
 
 
 #print 'Number of arguments:', len(sys.argv), 'arguments.'
