@@ -107,7 +107,7 @@ def detect_ratio(filepath):
     ffprobecmd = 'ffprobe -v error -show_entries stream=width,height -of default=noprint_wrappers=1 {0}'.format(filepath)
     probe = subprocess.Popen(ffprobecmd.split(), stdout=subprocess.PIPE)
     output, err = probe.communicate()
-    output = str(output, 'utf-8')
+    output = output.decode('utf-8')
     output = output.split()
     try:
         width = float(output[(0 if output[0][0] == 'w' else 1)].split('=')[1])
@@ -141,7 +141,7 @@ def detect_bitrate(path):
                         ffprobecmd.format(filepath).split(),
                         stdout=subprocess.PIPE)
                     output, err = probe.communicate()
-                    output = str(output, 'utf-8')
+                    output = output.decode('utf-8')
                     output = int(output.split('=')[1])
                     if not output > 0:
                         raise
